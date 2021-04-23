@@ -346,3 +346,21 @@ fn translations() {
     assert_eq!(gtfs.get_stop_translated("stop1", "fr").unwrap().name, "Arrêt Région");
     assert_eq!(gtfs.get_stop_translated("stop1", "en").unwrap().name, "Stop Area");
 }
+
+#[test]
+fn nmbs_data() {
+    let gtfs = Gtfs::from_url("https://sncb-opendata.hafas.de/gtfs/static/c21ac6758dd25af84cca5b707f3cb3de").expect("Invalid URL");
+
+    let lier_stop = gtfs.get_stop("S8821600").unwrap();
+    assert_eq!(lier_stop.name, "Lierre");
+
+    let lier_stop_nl = gtfs.get_stop_translated("S8821600", "nl").unwrap();
+    assert_eq!(lier_stop_nl.name, "Lier");
+
+    let lier_stop_fr = gtfs.get_stop_translated("S8821600", "fr").unwrap();
+    assert_eq!(lier_stop_fr.name, "Lierre");
+
+    // Using 'it' as unknown value
+    let lier_stop_fr = gtfs.get_stop_translated("S8821600", "it").unwrap();
+    assert_eq!(lier_stop_fr.name, "Lierre");
+}

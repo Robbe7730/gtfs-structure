@@ -1,3 +1,6 @@
+use core::fmt::Formatter;
+use serde::de::MapAccess;
+use serde::de::Visitor;
 use crate::Gtfs;
 use chrono::{Datelike, NaiveDate, Weekday};
 use rgb::RGB8;
@@ -21,7 +24,7 @@ pub trait Translatable {
 #[derive(Derivative)]
 #[derivative(Default(bound = ""))]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Translation {
+pub struct GtfsTranslation {
     pub table_name: String,
     pub field_name: String,
     pub language: String,
@@ -29,6 +32,121 @@ pub struct Translation {
     pub record_id: Option<String>,
     pub record_sub_id: Option<String>,
     pub field_value: Option<String>,
+}
+
+#[derive(Derivative)]
+#[derivative(Default(bound = ""))]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct NmbsTranslation {
+    pub trans_id: String,
+    pub lang: String,
+    pub translation: String
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum Translation {
+    Gtfs(GtfsTranslation),
+    Nmbs(NmbsTranslation),
+}
+
+impl<'de> Deserialize<'de> for Translation {
+    fn deserialize<D>(deserializer: D) -> Result<Translation, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            // GTFS/shared values
+            TableName,
+            FieldName,
+            Language,
+            Translation,
+            RecordId,
+            RecordSubId,
+            FieldValue,
+            // NMBS values
+            TransId,
+            Lang,
+        }
+
+        struct TranslationVisitor;
+
+        impl<'de> Visitor<'de> for TranslationVisitor {
+            type Value = Translation;
+
+            fn visit_map<V>(self, mut map: V) -> Result<Translation, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut maybe_table_name = None;
+                let mut maybe_field_name = None;
+                let mut maybe_language = None;
+                let mut maybe_translation = None;
+                let mut maybe_record_id = None;
+                let mut maybe_record_sub_id = None;
+                let mut maybe_field_value = None;
+                let mut maybe_trans_id = None;
+                let mut maybe_lang = None;
+
+                while let Some(field) = map.next_key()? {
+                    match field {
+                        Field::TableName => {
+                            maybe_table_name = Some(map.next_value()?);
+                        }
+                        Field::FieldName => {
+                            maybe_field_name = Some(map.next_value()?);
+                        }
+                        Field::Language => {
+                            maybe_language = Some(map.next_value()?);
+                        }
+                        Field::Translation => {
+                            maybe_translation = Some(map.next_value()?);
+                        }
+                        Field::RecordId => {
+                            maybe_record_id = Some(map.next_value()?);
+                        }
+                        Field::RecordSubId => {
+                            maybe_record_sub_id = Some(map.next_value()?);
+                        }
+                        Field::FieldValue => {
+                            maybe_field_value = Some(map.next_value()?);
+                        }
+                        Field::TransId => {
+                            maybe_trans_id = Some(map.next_value()?);
+                        }
+                        Field::Lang => {
+                            maybe_lang = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                if maybe_lang.is_some() && maybe_trans_id.is_some() && maybe_translation.is_some() {
+                    Ok(Translation::Nmbs(NmbsTranslation {
+                        lang: maybe_lang.unwrap(),
+                        trans_id: maybe_trans_id.unwrap(),
+                        translation: maybe_translation.unwrap()
+                    }))
+                } else {
+                    Ok(Translation::Gtfs(GtfsTranslation {
+                        table_name: maybe_table_name.unwrap(),
+                        field_name: maybe_field_name.unwrap(),
+                        language: maybe_language.unwrap(),
+                        translation: maybe_translation.unwrap(),
+                        record_id: maybe_record_id.unwrap(),
+                        record_sub_id: maybe_record_sub_id.unwrap(),
+                        field_value: maybe_field_value.unwrap(),
+                    }))
+                }
+            }
+            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                formatter.write_str("struct Translation")
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["table_name", "field_name", "language", "translation", "record_id", "record_sub_id", "field_value", "trans_id", "lang"];
+        deserializer.deserialize_struct("Duration", FIELDS, TranslationVisitor)
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]

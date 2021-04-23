@@ -328,47 +328,64 @@ fn create_translations(
     let mut translations_by_id = HashMap::new();
     let mut translations_by_value = HashMap::new();
 
-    for translation in raw_translations {
-        if translation.record_id.is_some() {
-            // Make sure it is not forbidden
-            if translation.field_value.is_some() ||
-                translation.table_name == "feed_info".to_string() {
-                return Err(Error::InvalidTranslation(
-                        "record_id was defined when it was forbidden".to_string()
-                ));
-            }
+    for translation_enum in raw_translations {
+        match translation_enum {
+            Translation::Gtfs(translation) => {
+                if translation.record_id.is_some() {
+                    // Make sure it is not forbidden
+                    if translation.field_value.is_some() ||
+                        translation.table_name == "feed_info".to_string() {
+                        return Err(Error::InvalidTranslation(
+                                "record_id was defined when it was forbidden".to_string()
+                        ));
+                    }
 
-            // Make sure record_sub_id is there if and only if it is required
-            if translation.table_name == "stop_times".to_string() &&
-                translation.record_sub_id.is_none() {
-                return Err(Error::InvalidTranslation(
-                        "record_sub_id was not set when it was required".to_string()
-                ));
-            }
+                    // Make sure record_sub_id is there if and only if it is required
+                    if translation.table_name == "stop_times".to_string() &&
+                        translation.record_sub_id.is_none() {
+                        return Err(Error::InvalidTranslation(
+                                "record_sub_id was not set when it was required".to_string()
+                        ));
+                    }
 
-            translations_by_id.insert(TranslationByIdKey {
-                table_name: translation.table_name,
-                field_name: translation.field_name,
-                language: translation.language,
-                record_id: translation.record_id.unwrap(),
-                record_sub_id: translation.record_sub_id,
-            }, translation.translation);
-        } else if translation.field_value.is_some() {
-            // Make sure it is not forbidden
-            if translation.record_id.is_some() ||
-                translation.record_sub_id.is_some() ||
-                translation.table_name == "feed_info".to_string() {
-                return Err(Error::InvalidTranslation(
-                        "field_value was defined when it was forbidden".to_string()
-                ));
-            }
+                    translations_by_id.insert(TranslationByIdKey {
+                        table_name: translation.table_name,
+                        field_name: translation.field_name,
+                        language: translation.language,
+                        record_id: translation.record_id.unwrap(),
+                        record_sub_id: translation.record_sub_id,
+                    }, translation.translation);
+                } else if translation.field_value.is_some() {
+                    // Make sure it is not forbidden
+                    if translation.record_id.is_some() ||
+                        translation.record_sub_id.is_some() ||
+                        translation.table_name == "feed_info".to_string() {
+                        return Err(Error::InvalidTranslation(
+                                "field_value was defined when it was forbidden".to_string()
+                        ));
+                    }
 
-            translations_by_value.insert(TranslationByValueKey {
-                table_name: translation.table_name,
-                field_name: translation.field_name,
-                language: translation.language,
-                field_value: translation.field_value.unwrap(),
-            }, translation.translation);
+                    translations_by_value.insert(TranslationByValueKey {
+                        table_name: translation.table_name,
+                        field_name: translation.field_name,
+                        language: translation.language,
+                        field_value: translation.field_value.unwrap(),
+                    }, translation.translation);
+                }
+            }
+            Translation::Nmbs(translation) => {
+                for (table_name, field_name) in &[
+                    ("stops", "stop_name"),
+                    ("trips", "trip_short_name")
+                ] {
+                    translations_by_value.insert(TranslationByValueKey {
+                        table_name: table_name.to_string(),
+                        field_name: field_name.to_string(),
+                        language: translation.lang.clone(),
+                        field_value: translation.trans_id.clone(),
+                    }, translation.translation.clone());
+                }
+            }
         }
     }
 
