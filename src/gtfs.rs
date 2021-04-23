@@ -376,7 +376,8 @@ fn create_translations(
             Translation::Nmbs(translation) => {
                 for (table_name, field_name) in &[
                     ("stops", "stop_name"),
-                    ("trips", "trip_short_name")
+                    ("trips", "trip_short_name"),
+                    ("trips", "trip_headsign")
                 ] {
                     translations_by_value.insert(TranslationByValueKey {
                         table_name: table_name.to_string(),
